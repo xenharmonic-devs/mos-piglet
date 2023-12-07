@@ -1,6 +1,14 @@
 import { reactive, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { UnisonSynth, type UnisonVoiceParams } from 'sw-synth'
+import {
+  UnisonSynth,
+  type UnisonVoiceParams,
+  type BufferVoiceParams,
+  BufferSynth,
+  type VoiceBaseParams,
+  type BufferFactory,
+  Synth
+} from 'sw-synth'
 
 const audioDelay = navigator.userAgent.includes('Chrome') ? 0.001 : 0.03
 
@@ -14,20 +22,30 @@ export const useAudioStore = defineStore('audio', () => {
   const mainGain = ref<GainNode | null>(null)
   const mainLowpass = ref<BiquadFilterNode | null>(null)
   const mainHighpass = ref<BiquadFilterNode | null>(null)
-  const synth = ref<UnisonSynth | null>(null)
+  const unisonSynth = ref<UnisonSynth | null>(null)
+  const bufferSynth = ref<BufferSynth | null>(null)
+
+  const synth = ref<Synth | null>(null)
 
   // Synth params
   const maxPolyphony = ref(6)
   // const synthVoiceParams = reactive<AperiodicVoiceParams>({
-  const synthVoiceParams = reactive<UnisonVoiceParams>({
+  const synthVoiceParams = reactive<VoiceBaseParams>({
     audioDelay,
     attackTime: 0.01,
     decayTime: 0.3,
     sustainLevel: 0.8,
-    releaseTime: 0.01,
-    spread: 3,
-    stackSize: 5,
-    type: 'sawtooth'
+    releaseTime: 0.01
+  })
+
+  const oscillatorType = ref<OscillatorType>('sawtooth')
+  const oscillatorPeriodicWave = ref<PeriodicWave | undefined>(undefined)
+
+  const unisonSpread = ref(3)
+  const unisonStackSize = ref(5)
+
+  const bufferFactory = ref<BufferFactory>(() => {
+    throw new Error('No factory available')
   })
 
   // Fetch synth max polyphony
@@ -64,9 +82,13 @@ export const useAudioStore = defineStore('audio', () => {
     // Intended point of audio connection
     const audioDestination = highpass
 
-    synth.value = new UnisonSynth(context.value, audioDestination)
-    synth.value.voiceParams = synthVoiceParams
-    synth.value.maxPolyphony = maxPolyphony.value
+    unisonSynth.value = new UnisonSynth(context.value, audioDestination)
+    unisonSynth.value.maxPolyphony = maxPolyphony.value
+    synth.value = unisonSynth.value
+
+    bufferSynth.value = new BufferSynth(context.value, audioDestination)
+    // TODO: Negotiate voice allocation based on active synth
+    bufferSynth.value.maxPolyphony = maxPolyphony.value
   }
 
   async function unintialize() {
@@ -104,6 +126,31 @@ export const useAudioStore = defineStore('audio', () => {
     synth.value.setPolyphony(newValue)
   })
 
+  watch(
+    [unisonSynth, oscillatorType, oscillatorPeriodicWave, unisonSpread, unisonStackSize],
+    ([unison, type, periodicWave, spread, stackSize]) => {
+      if (!unison) {
+        return
+      }
+      const voiceParams: UnisonVoiceParams = {
+        ...synthVoiceParams,
+        type,
+        periodicWave,
+        spread,
+        stackSize
+      }
+      unison.voiceParams = voiceParams
+    }
+  )
+
+  watch([bufferSynth, bufferFactory], ([bs, factory]) => {
+    if (!bs) {
+      return
+    }
+    const voiceParams: BufferVoiceParams = { ...synthVoiceParams, factory }
+    bs.voiceParams = voiceParams
+  })
+
   return {
     initialize,
     unintialize,
@@ -111,11 +158,18 @@ export const useAudioStore = defineStore('audio', () => {
     mainVolume,
     maxPolyphony,
     synthVoiceParams,
+    oscillatorType,
+    oscillatorPeriodicWave,
+    unisonSpread,
+    unisonStackSize,
+    bufferFactory,
     synth,
 
     // Add to state but not intended for mutation
     mainGain,
     mainLowpass,
-    mainHighpass
+    mainHighpass,
+    unisonSynth,
+    bufferSynth
   }
 })

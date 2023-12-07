@@ -112,8 +112,9 @@ watch(
     cosines[M] = real[M]
 
     const wave = audio.context.createPeriodicWave(cosines, sines)
-    audio.synthVoiceParams.periodicWave = wave
-    audio.synthVoiceParams.type = 'custom'
+    audio.oscillatorPeriodicWave = wave
+    audio.oscillatorType = 'custom'
+    audio.synth = audio.unisonSynth
   })
 )
 </script>

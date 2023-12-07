@@ -54,6 +54,7 @@ onUnmounted(() => {
       <nav>
         <RouterLink to="/">Home</RouterLink>
         <RouterLink to="/about">About</RouterLink>
+        <RouterLink to="/bee">Bee</RouterLink>
       </nav>
     </div>
   </header>
