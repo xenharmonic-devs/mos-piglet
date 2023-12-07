@@ -19,6 +19,7 @@
     "pinia": "^2.1.7",
     "vue": "^3.3.10",
     "vue-router": "^4.2.5",
+    "frost-fft": "github:frostburn/frost-fft#v0.0.2",
     "sw-synth": "github:xenharmonic-devs/sw-synth#v0.0.1"
   },
   "devDependencies": {

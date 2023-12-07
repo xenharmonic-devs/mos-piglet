@@ -2,15 +2,23 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps<{
-  magnitude: number[]
+  waveform: number[]
 }>()
 
-const emit = defineEmits(['update:magnitude'])
+const emit = defineEmits(['update:waveform'])
 
 const editing = ref(false)
 const svg = ref<SVGSVGElement | null>(null)
 
-const dx = computed(() => 1 / props.magnitude.length)
+const dx = computed(() => 1 / props.waveform.length)
+
+const points = computed(() => {
+  const ps: string[] = []
+  for (let i = 0; i < props.waveform.length; ++i) {
+    ps.push(`${i * dx.value},${-props.waveform[i]}`)
+  }
+  return ps.join(' ')
+})
 
 let pt: DOMPoint | null = null
 
@@ -30,14 +38,15 @@ function svgCoords(x: number, y: number) {
   return pt.matrixTransform(ctm.inverse())
 }
 
+// TODO: Affect everything on a line from last point
 function onMouseMove(event: MouseEvent) {
   if (!editing.value) {
     return
   }
   const { x, y } = svgCoords(event.x, event.y)
-  const index = Math.max(0, Math.min(props.magnitude.length - 1, Math.floor(x / dx.value)))
-  const value = Math.max(0, Math.min(1, 1 - y))
-  emit('update:magnitude', index, value)
+  const index = Math.max(0, Math.min(props.waveform.length - 1, Math.floor(x / dx.value)))
+  const value = -y
+  emit('update:waveform', index, value)
 }
 
 function stopEditing() {
@@ -51,39 +60,37 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('mouseup', stopEditing)
 })
+
+// TODO: Preserve aspect ratio so that the lines don't look horrible.
 </script>
 
 <template>
   <svg
     width="100%"
     height="100%"
-    viewBox="-0.01 -0.01 1.02 1.02"
+    viewBox="-0.01 -1.5 1.02 3"
+    preserveAspectRatio="none"
     xmlns="http://www.w3.org/2000/svg"
     ref="svg"
     @mousedown="editing = true"
     @mousemove="onMouseMove"
   >
-    <g v-for="(m, i) of magnitude" :key="i">
-      <rect :x="i * dx" :y="1 - m" :width="0.9 * dx" :height="m"></rect>
-      <text :x="(i + 0.45) * dx" y="0.95" :font-size="`${0.7 * dx}px`">{{ i }}</text>
-    </g>
+    <line x1="0" y1="0" x2="1" y2="0"></line>
+    <line x1="0" y1="1" x2="1" y2="1"></line>
+    <line x1="0" y1="-1" x2="1" y2="-1"></line>
+    <polyline :points="points"></polyline>
   </svg>
 </template>
 
 <style scoped>
-rect {
-  fill: white;
-  stroke: gray;
+line {
+  fill: none;
+  stroke: green;
   stroke-width: 0.01;
 }
-
-rect:hover {
-  fill: lightgreen;
-}
-
-text {
-  user-select: none;
-  text-anchor: middle;
-  fill: #53a;
+polyline {
+  fill: none;
+  stroke: red;
+  stroke-width: 0.02;
 }
 </style>
